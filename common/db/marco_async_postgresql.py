@@ -2,7 +2,7 @@ import logging
 from contextlib import asynccontextmanager
 from typing import Optional
 
-from fastapi import status as http_status
+from fastapi import status as http_status, HTTPException
 from psycopg_pool import AsyncConnectionPool
 
 
@@ -114,10 +114,9 @@ class MarcoAsyncPostgreSQL():
                     logging.debug(f"Getting connection... {pool_stats}")
                     connection = await self.db_connection.getconn()
                     if connection is None:
-                        raise CustomBaseException(
-                            message="Failed to obtain a connection from the pool",
+                        raise HTTPException(
                             status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
-                            error="error_getting_connection",
+                            detail="Failed to obtain a connection from the pool",
                         )
 
                     # Test connection with a simple query
@@ -147,10 +146,9 @@ class MarcoAsyncPostgreSQL():
                         continue
             except Exception as e:
                 if attempt == max_retries - 1:
-                    raise CustomBaseException(
-                        message=f"Error getting connection: {str(e)}",
+                    raise HTTPException(
                         status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
-                        error="error_getting_connection",
+                        detail=f"Error getting connection: {str(e)}",
                     )
                 logging.warning(f"Connection attempt {attempt + 1} failed: {str(e)}")
                 continue
@@ -165,10 +163,9 @@ class MarcoAsyncPostgreSQL():
                 await self.db_connection.putconn(connection)
                 logging.debug(f"Connection returned successfully {pool_stats}")
         except Exception as e:
-            raise CustomBaseException(
-                message=f"Error releasing connection: {str(e)}",
+            raise HTTPException(
                 status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
-                error="error_releasing_connection",
+                detail=f"Error releasing connection: {str(e)}",
             )
 
     async def open_pool(self):
@@ -198,8 +195,7 @@ class MarcoAsyncPostgreSQL():
             except Exception as e:
                 error_message = f"CRITICAL: Failed to connect to database {self.host}:{self.port}/{self.dbname}: {str(e)}"
                 logging.critical(error_message)
-                raise CustomBaseException(
-                    message=error_message,
+                raise HTTPException(
                     status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
-                    error="database_connection_failed",
+                    detail=error_message,
                 )

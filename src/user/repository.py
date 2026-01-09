@@ -1,4 +1,5 @@
-from common.db.marco_async_postresql import MarcoAsyncPostgreSQL
+from common.db. import MarcoAsyncPostgreSQL
+from fastapi import HTTPException
 from uuid import UUID
 from typing import Optional
 from .schema import UserData
@@ -26,10 +27,9 @@ class UserRepository:
             ]
 
             if str(uuid) in not_allowed_users:
-                raise Exception(
-                    message="Not allowed to get this user",
+                raise HTTPException(
                     status_code=500,
-                    error="NOT_ALLOWED_TO_GET_THIS_USER",
+                    detail="Not allowed to get this user",
                 )
 
             query = """
@@ -48,10 +48,12 @@ class UserRepository:
             result = await cursor.fetchone()
 
             if not result:
-                raise Exception(
-                    message="User not found",
+                raise HTTPException(
                     status_code=500,
-                    error="USER_NOT_FOUND",
+                    detail={
+                        "message": "User not found",
+                        "error": "USER_NOT_FOUND"
+                    },
                 )
 
             columns = [desc[0] for desc in cursor.description]
@@ -61,7 +63,7 @@ class UserRepository:
     async def get_all_users_async(self):
         async with self.connection.get_cursor() as cursor:
             query = """
-                SELECT DISTINCT
+                SELECT
                     uuid, first_name, last_name, email, is_active,
                     is_pending, profile_picture_url, job_title,
                     created_at, updated_at, deleted_at
@@ -109,10 +111,9 @@ class UserRepository:
             result = await cursor.fetchone()
 
             if not result:
-                raise Exception(
-                    message="Failed to create user",
+                raise HTTPException(
                     status_code=500,
-                    error="USER_CREATION_FAILED",
+                    detail="Failed to create user",
                 )
 
             columns = [desc[0] for desc in cursor.description]
@@ -133,10 +134,9 @@ class UserRepository:
             existing = await cursor.fetchone()
 
             if existing:
-                raise Exception(
-                    message="User is already associated with this business",
+                raise HTTPException(
                     status_code=400,
-                    error="USER_BUSINESS_EXISTS",
+                    detail="User is already associated with this business",
                 )
 
             # Insert the new relationship
@@ -154,8 +154,18 @@ class UserRepository:
             try:
                 await cursor.execute(query, values)
             except Exception as e:
-                raise Exception(
-                    message=f"Failed to add user to business: {str(e)}",
+                raise HTTPException(
                     status_code=500,
-                    error="USER_BUSINESS_CREATION_FAILED",
+                    detail=f"Failed to add user to business: {str(e)}",
                 ) from e
+
+    async def get_users_ids(self, business_uuid: UUID) -> list[UUID]:
+        async with self.connection.get_cursor() as cursor:
+            query = """
+                SELECT user_uuid 
+                FROM user_businesses 
+                WHERE business_uuid = %s
+            """
+            await cursor.execute(query, (business_uuid,))
+            results = await cursor.fetchall()
+            return [row[0] for row in results]

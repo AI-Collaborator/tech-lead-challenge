@@ -1,7 +1,6 @@
 from fastapi import APIRouter
 from .service import UserService
 from .schema import UserDataResponse, UserCreateRequest
-from .service import UserService
 
 
 router = APIRouter()

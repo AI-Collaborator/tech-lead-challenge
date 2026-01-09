@@ -1,5 +1,5 @@
 import datetime
-from typing import Optional, List, Any
+from typing import Optional, Any
 from uuid import UUID
 from pydantic import BaseModel
 
@@ -14,6 +14,7 @@ class UserData(BaseModel):
     job_title: Optional[str] = None
     created_at: Optional[datetime.datetime] = None
     updated_at: Optional[datetime.datetime] = None
+    deleted_at: Optional[datetime.datetime] = None
 
     class Config:
         use_enum_values = True
